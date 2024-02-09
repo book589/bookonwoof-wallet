@@ -1,27 +1,56 @@
-<!DOCTYPE html>
+const $ = document.querySelector.bind(document);
+const $$ = document.querySelectorAll.bind(document);
 
-<html>
+document.addEventListener('DOMContentLoaded', function() {
+    $("#reset_button").disabled = true;
+    $("#accept_reset_checkbox").onclick = clickAcceptReset;
+    $("#reset_button").onclick = resetWallet;
 
-    <head>
-        <meta charset="utf-8" />
-    </head>
+    loadWallet().catch(e => console.error(e));
+});
 
-    <body>
-        <h1>Info</h1>
-        Private Key
-        <input id="privkey"></input>
-        Mnemonic
-        <input id="mnemonic"></input>
-        Derivation
-        <input id="derivation"></input>
+async function loadWallet() {
+    // Wrap Chrome's callback pattern in a promise for async/await usage
+    const getStorageData = keys => new Promise((resolve, reject) => {
+        chrome.storage.local.get(keys, (result) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError));
+            } else {
+                resolve(result);
+            }
+        });
+    });
 
-        <h1>Reset</h1>
-        <span>
-            <input type="checkbox" id="accept_reset_checkbox"></input>
-            By clicking this button I accept there will be no way to recover my private keys and mnemonics.
-        </span>
-        <button id="reset_button">Reset</button>
-    </body>
+    const values = await getStorageData(["privkey", "mnemonic", "derivation"]);
 
-    <script src="options.js"></script>
-</html>
+    $("#privkey").value = values.privkey || '';
+    $("#mnemonic").value = values.mnemonic || '';
+    $("#derivation").value = values.derivation || '';
+
+    $("#privkey").disabled = true;
+    $("#mnemonic").disabled = true;
+    $("#derivation").disabled = true;
+}
+
+function clickAcceptReset() {
+    $("#reset_button").disabled = !$("#accept_reset_checkbox").checked;
+}
+
+async function resetWallet() {
+    // Use promise wrapper if needed or directly call with callbacks
+    await new Promise((resolve, reject) => {
+        chrome.storage.local.clear(() => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError));
+            } else {
+                resolve();
+            }
+        });
+    });
+
+    $("#privkey").value = '';
+    $("#mnemonic").value = '';
+    $("#derivation").value = '';
+    $("#accept_reset_checkbox").checked = false;
+    $("#reset_button").disabled = true;
+}
